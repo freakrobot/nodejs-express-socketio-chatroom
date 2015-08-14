@@ -30,6 +30,7 @@ var express = require("express")
  }
  */
 var participants = [];
+var socket_list = [];
 
 /* Server config */
 
@@ -74,6 +75,7 @@ app.post("/message", function(request, response) {
 
   //We also expect the sender's name with the message
   var name = request.body.name;
+  
 
   //Let our chatroom know there was a new message
   io.sockets.emit("incomingMessage", {message: message, name: name});
@@ -81,6 +83,35 @@ app.post("/message", function(request, response) {
   //Looks good, let the client know
   response.json(200, {message: "Message received"});
 
+});
+
+app.post("/message_private", function(request, response) {
+	
+	var message = request.body.message;
+	
+	//If the message is empty or wasn't sent it's a bad request
+	if(_.isUndefined(message) || _.isEmpty(message.trim())) {
+		return response.json(400, {error: "Message is invalid"});
+	 }
+
+	 //We also expect the sender's name with the message
+	var name = request.body.name;
+	var selected_id = request.body.to_user;
+	console.log(name);
+
+	var to_user = _.find(socket_list, function(sock) {
+		if (sock.id == selected_id) {
+			return true;
+		} else {
+			return false;
+		}
+	});
+	console.log("userid_:"+to_user.id);
+	 //Let our chatroom know there was a new message
+	to_user.emit("incomingPrivateMessage", {message: message, name: name});
+
+	 //Looks good, let the client know
+	 response.json(200, {message: "Message received"});
 });
 
 /* Socket.IO events */
@@ -91,8 +122,11 @@ io.on("connection", function(socket){
    and then we'll emit an event called "newConnection" with a list of all
    participants to all connected clients
    */
+  socket_list.push(socket);
+   
   socket.on("newUser", function(data) {
     participants.push({id: data.id, name: data.name});
+	console.log("new user");
     io.sockets.emit("newConnection", {participants: participants});
   });
 
@@ -112,10 +146,9 @@ io.on("connection", function(socket){
    all participants with the id of the client that disconnected
    */
   socket.on("disconnect", function() {
-    participants = _.without(participants,_.findWhere(participants, {id: socket.id}));
+    participants = _.without(participants, _.findWhere(participants, {id: socket.id}));
     io.sockets.emit("userDisconnected", {id: socket.id, sender:"system"});
   });
-
 });
 
 //Start the http server at port and IP defined before

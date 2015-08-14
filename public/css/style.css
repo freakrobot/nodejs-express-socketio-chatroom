@@ -8,10 +8,28 @@ textarea {
     resize: none;
 }
 
+a:link, a:visited {
+	display:block;
+	border: 1px solid #000;
+}
+
+a:hover, a:active {
+	display:block;
+	border: 1px solid #000;
+}
+
 .inlineBlock {
     display: inline-block;
 }
 
 .topAligned {
     vertical-align: top;
+}
+
+.selected {
+	background-color: #ccc;
+}
+
+.private {
+	color: #e00;
 }

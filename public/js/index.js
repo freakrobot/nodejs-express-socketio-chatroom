@@ -1,3 +1,7 @@
+//We'll save our session ID in a variable for later
+var sessionId = '';
+var selectedId = '';
+
 function init() {
 
   var serverBaseUrl = document.domain;
@@ -9,15 +13,12 @@ function init() {
    */
   var socket = io.connect(serverBaseUrl);
 
-  //We'll save our session ID in a variable for later
-  var sessionId = '';
-
   //Helper function to update the participants' list
   function updateParticipants(participants) {
     $('#participants').html('');
     for (var i = 0; i < participants.length; i++) {
-      $('#participants').append('<span id="' + participants[i].id + '">' +
-        participants[i].name + ' ' + (participants[i].id === sessionId ? '(You)' : '') + '<br /></span>');
+      $('#participants').append('<a href="#" onclick="select_name(\''+ participants[i].id +'\')"><span id="' + participants[i].id + '">' +
+        participants[i].name + ' ' + (participants[i].id === sessionId ? '(You)' : '') + '<br /></span></a>');
     }
   }
 
@@ -40,6 +41,7 @@ function init() {
    Note we are assigning the sessionId as the span ID.
    */
   socket.on('newConnection', function (data) {
+	console.log(data.participants[0].name);
     updateParticipants(data.participants);
   });
 
@@ -68,6 +70,12 @@ function init() {
     var name = data.name;
     $('#messages').prepend('<b>' + name + '</b><br />' + message + '<hr />');
   });
+  
+  socket.on('incomingPrivateMessage', function (data){
+	  var message = data.message;
+	  var name = data.name;
+	  $('#messages').prepend('<label class="private"><b>'+name+'</b></label><br />' + message + '<hr />');
+  });
 
   /*
    Log an error if unable to connect to server
@@ -81,15 +89,27 @@ function init() {
    whatever message we have in our textarea
    */
   function sendMessage() {
+	
     var outgoingMessage = $('#outgoingMessage').val();
     var name = $('#name').val();
-    $.ajax({
-      url:  '/message',
-      type: 'POST',
-      contentType: 'application/json',
-      dataType: 'json',
-      data: JSON.stringify({message: outgoingMessage, name: name})
-    });
+	
+	if (selectedId == '') {
+		$.ajax({
+		url:  '/message',
+		type: 'POST',
+		contentType: 'application/json',
+		dataType: 'json',
+		data: JSON.stringify({message: outgoingMessage, name: name})
+		});
+	} else {
+		$.ajax({
+		url:  '/message_private',
+		type: 'POST',
+		contentType: 'application/json',
+		dataType: 'json',
+		data: JSON.stringify({message: outgoingMessage, name: name, to_user: selectedId})
+		});
+	}
   }
 
   /*
@@ -129,7 +149,23 @@ function init() {
   $('#outgoingMessage').on('keyup', outgoingMessageKeyUp);
   $('#name').on('focusout', nameFocusOut);
   $('#send').on('click', sendMessage);
-
+  
+  console.log("a function");
 }
 
 $(document).on('ready', init);
+
+function select_name(name) {
+	console.log("session_id:"+sessionId);
+	if ( name != sessionId && selectedId != name)
+	{
+		selectedId = name;
+		$("span").each(function(){ $(this).removeClass("selected"); });
+		$("#"+name).addClass("selected");
+	}
+	else if (selectedId == name)
+	{
+		$("span").each(function(){ $(this).removeClass("selected"); });
+		selectedId = '';
+	}
+}
